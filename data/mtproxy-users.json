@@ -1,0 +1,333 @@
+{
+  "id": null,
+  "uid": "mtproxy-users",
+  "title": "MTProxy — Трафик по пользователям",
+  "tags": ["mtproxy", "telemt", "users", "traffic"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 2,
+  "refresh": "30s",
+  "time": { "from": "now-24h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "interval",
+        "type": "interval",
+        "label": "Интервал",
+        "options": [
+          { "text": "1h",  "value": "1h" },
+          { "text": "6h",  "value": "6h" },
+          { "text": "24h", "value": "24h" },
+          { "text": "7d",  "value": "7d" },
+          { "text": "30d", "value": "30d" }
+        ],
+        "current": { "text": "24h", "value": "24h" },
+        "query": "1h,6h,24h,7d,30d"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Статус экспортёра",
+      "type": "stat",
+      "gridPos": { "h": 3, "w": 4, "x": 0, "y": 0 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "mtproxy_scrape_success",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "● ERROR", "color": "red" } } },
+            { "type": "value", "options": { "1": { "text": "● OK",    "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "justifyMode": "center" }
+    },
+    {
+      "id": 2,
+      "title": "Всего активных подключений",
+      "type": "stat",
+      "gridPos": { "h": 3, "w": 5, "x": 4, "y": 0 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "sum(mtproxy_user_connections_current)",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 200 }, { "color": "red", "value": 500 }] }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none", "justifyMode": "center" }
+    },
+    {
+      "id": 3,
+      "title": "Всего уникальных IP (активные)",
+      "type": "stat",
+      "gridPos": { "h": 3, "w": 5, "x": 9, "y": 0 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "sum(mtproxy_user_active_unique_ips)",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none", "justifyMode": "center" }
+    },
+    {
+      "id": 4,
+      "title": "Суммарный трафик (накопленный)",
+      "type": "stat",
+      "gridPos": { "h": 3, "w": 5, "x": 14, "y": 0 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "sum(mtproxy_user_traffic_bytes_total)",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none", "justifyMode": "center" }
+    },
+    {
+      "id": 5,
+      "title": "Трафик за выбранный период",
+      "type": "stat",
+      "gridPos": { "h": 3, "w": 5, "x": 19, "y": 0 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "sum(increase(mtproxy_user_traffic_bytes_total[$interval]))",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "purple", "value": null }] }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none", "justifyMode": "center" }
+    },
+
+    {
+      "id": 10,
+      "title": "Трафик по пользователям (накопленный, всего)",
+      "type": "bargauge",
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 3 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "sort_desc(mtproxy_user_traffic_bytes_total)",
+        "legendFormat": "{{ user }}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1073741824 },
+              { "color": "red", "value": 10737418240 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "text": { "valueSize": 14 }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Трафик по пользователям за период ($interval)",
+      "type": "bargauge",
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 3 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "sort_desc(increase(mtproxy_user_traffic_bytes_total[$interval]))",
+        "legendFormat": "{{ user }}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 536870912 },
+              { "color": "red", "value": 5368709120 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "text": { "valueSize": 14 }
+      }
+    },
+
+    {
+      "id": 12,
+      "title": "Скорость трафика по пользователям (байт/с)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "rate(mtproxy_user_traffic_bytes_total[5m])",
+        "legendFormat": "{{ user }}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0,
+          "custom": { "fillOpacity": 10, "lineWidth": 2, "stacking": { "mode": "normal", "group": "A" } }
+        }
+      },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 20,
+      "title": "Активные подключения по пользователям",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "mtproxy_user_connections_current",
+        "legendFormat": "{{ user }}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": { "fillOpacity": 8, "lineWidth": 2 }
+        }
+      },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+
+    {
+      "id": 21,
+      "title": "Уникальные IP по пользователям (активные)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 21 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "mtproxy_user_active_unique_ips",
+        "legendFormat": "{{ user }}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": { "fillOpacity": 8, "lineWidth": 2 }
+        }
+      },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+    {
+      "id": 22,
+      "title": "Уникальные IP за последнее время (recent window)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 21 },
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "mtproxy_user_recent_unique_ips",
+        "legendFormat": "{{ user }}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": { "fillOpacity": 8, "lineWidth": 2 }
+        }
+      },
+      "options": { "tooltip": { "mode": "multi", "sort": "desc" } }
+    },
+
+    {
+      "id": 30,
+      "title": "Таблица пользователей",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 29 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "mtproxy_user_traffic_bytes_total",
+          "legendFormat": "{{ user }}",
+          "refId": "A",
+          "instant": true
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "increase(mtproxy_user_traffic_bytes_total[$interval])",
+          "legendFormat": "{{ user }}",
+          "refId": "B",
+          "instant": true
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "mtproxy_user_connections_current",
+          "legendFormat": "{{ user }}",
+          "refId": "C",
+          "instant": true
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "mtproxy_user_active_unique_ips",
+          "legendFormat": "{{ user }}",
+          "refId": "D",
+          "instant": true
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "rate(mtproxy_user_traffic_bytes_total[5m])",
+          "legendFormat": "{{ user }}",
+          "refId": "E",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "left" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Value #A" }, "properties": [{ "id": "displayName", "value": "Трафик (всего)" }, { "id": "unit", "value": "bytes" }] },
+          { "matcher": { "id": "byName", "options": "Value #B" }, "properties": [{ "id": "displayName", "value": "За период" }, { "id": "unit", "value": "bytes" }] },
+          { "matcher": { "id": "byName", "options": "Value #C" }, "properties": [{ "id": "displayName", "value": "Подключений" }] },
+          { "matcher": { "id": "byName", "options": "Value #D" }, "properties": [{ "id": "displayName", "value": "Уник. IP" }] },
+          { "matcher": { "id": "byName", "options": "Value #E" }, "properties": [{ "id": "displayName", "value": "Скорость" }, { "id": "unit", "value": "Bps" }] }
+        ]
+      },
+      "options": {
+        "sortBy": [{ "displayName": "Трафик (всего)", "desc": true }],
+        "footer": { "show": false }
+      },
+      "transformations": [
+        { "id": "merge", "options": {} },
+        { "id": "organize", "options": { "excludeByName": { "Time": true, "job": true, "__name__": true } } }
+      ]
+    }
+  ]
+}

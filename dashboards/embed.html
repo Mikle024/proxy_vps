@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>VLESS Topology</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;600&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --border: #1e2230;
+    --text: #c8d0e0;
+    --muted: #4a5268;
+    --accent: #3b82f6;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --orange: #f97316;
+    --red: #ef4444;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: var(--bg); overflow: hidden; }
+
+  #wrap { width: 100%; height: 100%; display: flex; flex-direction: column; }
+
+  /* ── Toolbar ── */
+  #toolbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 6px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    background: var(--surface);
+    flex-wrap: wrap;
+  }
+  .tb-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    margin-right: 4px;
+  }
+  .tb-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+  .tb-stat { display: flex; align-items: baseline; gap: 4px; }
+  .tb-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--green);
+  }
+  .tb-label { font-size: 10px; color: var(--muted); text-transform: uppercase; }
+  .tb-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green);
+    animation: pulse-anim 2s ease-in-out infinite;
+  }
+  @keyframes pulse-anim {
+    0%,100%{opacity:1;transform:scale(1)}
+    50%{opacity:.4;transform:scale(.7)}
+  }
+  .tb-source { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); }
+
+  /* ── Top-3 inline в тулбаре ── */
+  .tb-top3 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+  }
+  .tb-top3-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-right: 2px;
+  }
+  .top-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px 3px 5px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.03);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    transition: border-color 0.3s;
+  }
+  .top-chip.active {
+    border-color: rgba(59,130,246,0.5);
+    background: rgba(59,130,246,0.08);
+  }
+  .top-chip .chip-rank {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .top-chip.r1 .chip-rank { background: var(--accent); color: #fff; }
+  .top-chip.r2 .chip-rank { background: #1e3a5f; color: var(--accent); }
+  .top-chip.r3 .chip-rank { background: #1a2a1a; color: var(--green); }
+  .chip-name { color: var(--text); max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip-lat { font-weight: 700; }
+  .chip-arrow {
+    font-size: 9px;
+    color: var(--muted);
+    margin: 0 1px;
+  }
+
+  /* ── Canvas ── */
+  #canvas-wrap { flex: 1; position: relative; overflow: hidden; }
+  #topology-canvas { display: block; }
+
+  /* ── Tooltip ── */
+  #tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: #1a1d26;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text);
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.12s;
+    max-width: 200px;
+    line-height: 1.6;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.7);
+  }
+  #tooltip.visible { opacity: 1; }
+  #tooltip strong { color: var(--accent); display: block; margin-bottom: 2px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="toolbar">
+    <div class="tb-title">⬡ VLESS TOPOLOGY</div>
+    <div class="tb-stat">
+      <span class="tb-val" id="t-alive">—</span>
+      <span class="tb-label">/ <span id="t-total">—</span> живых</span>
+    </div>
+    <div class="tb-sep"></div>
+    <div class="tb-stat">
+      <span class="tb-val" id="t-best" style="color:var(--green)">—</span>
+      <span class="tb-label">ms лучший</span>
+    </div>
+    <div class="tb-stat">
+      <span class="tb-val" id="t-avg" style="color:var(--yellow)">—</span>
+      <span class="tb-label">ms средний</span>
+    </div>
+    <div class="tb-sep"></div>
+    <div class="tb-dot" id="dot"></div>
+    <div class="tb-source" id="src-label">LIVE</div>
+    <div class="tb-source" id="countdown">30с</div>
+    <div class="tb-source" id="data-age" style="color:var(--muted);margin-left:2px"></div>
+
+    <div class="tb-sep"></div>
+    <div class="tb-top3">
+      <span class="tb-top3-label">Топ-3:</span>
+      <div id="top3-chips"></div>
+    </div>
+  </div>
+
+  <div id="canvas-wrap">
+    <canvas id="topology-canvas"></canvas>
+  </div>
+</div>
+<div id="tooltip"></div>
+
+<script>
+// Когда страница открыта внутри Grafana iframe — используем Grafana proxy.
+// Когда открыта напрямую (standalone) — пробуем прямой Prometheus.
+const GRAFANA_PROXY = '/api/datasources/proxy/uid/prometheus';
+const DIRECT_PROM   = window.PROMETHEUS_URL || 'http://localhost:19090';
+// Определяем: если URL содержит grafana-порт или путь /topology/ — мы в Grafana
+const IN_GRAFANA = window.location.pathname.includes('/topology/') ||
+                   window.location.port === '3000' ||
+                   !!window.GRAFANA_PROXY_URL;
+const PROMETHEUS_BASE = IN_GRAFANA ? GRAFANA_PROXY : DIRECT_PROM;
+const REFRESH_MS = 30_000;   // 30с — синхронизируем с SCRAPE_INTERVAL экспортера
+const TOP_N = 3;
+
+// ─── Mock data ────────────────────────────────────────────────
+function mock() {
+  const names = [
+    'DE-FRA-01','DE-FRA-02','DE-FRA-03','DE-FRA-04','DE-FRA-05',
+    'NL-AMS-01','NL-AMS-02','NL-AMS-03','NL-AMS-04','NL-AMS-05',
+    'FI-HEL-01','FI-HEL-02','FI-HEL-03','FI-HEL-04','FI-HEL-05',
+    'SE-STO-01','SE-STO-02','SE-STO-03','SE-STO-04','SE-STO-05',
+    'UK-LON-01','UK-LON-02','UK-LON-03','UK-LON-04','UK-LON-05',
+    'PL-WAR-01','PL-WAR-02','PL-WAR-03','PL-WAR-04','PL-WAR-05',
+    'AT-VIE-01','AT-VIE-02','AT-VIE-03','AT-VIE-04','AT-VIE-05',
+  ];
+  const aliveN = 28 + Math.floor(Math.random() * 6);
+  return names.map((h, i) => ({
+    host: h,
+    latency_ms: i < aliveN ? 18 + Math.random() * 260 : 0,
+    alive: i < aliveN ? 1 : 0,
+  }));
+}
+
+async function promQuery(expr) {
+  const url = `${PROMETHEUS_BASE}/api/v1/query?query=${encodeURIComponent(expr)}`;
+  const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const j = await r.json();
+  if (j.status !== 'success') throw new Error('prom: ' + j.error);
+  return j.data.result;
+}
+
+async function fetchData() {
+  try {
+    // Запрашиваем все хосты с латентностью
+    const [latResults, aliveResults] = await Promise.all([
+      promQuery('xray_balancer_host_latency_ms'),
+      promQuery('xray_balancer_host_alive'),
+    ]);
+
+    // Строим map живых хостов
+    const aliveMap = {};
+    aliveResults.forEach(r => {
+      aliveMap[r.metric.host] = parseFloat(r.value[1]);
+    });
+
+    // Строим список хостов с латентностью
+    const hostMap = {};
+    latResults.forEach(r => {
+      const host = r.metric.host || r.metric.instance || '?';
+      const ip   = r.metric.ip || '';
+      const lat  = parseFloat(r.value[1]);
+      hostMap[host] = { host, ip, latency_ms: lat, alive: 1 };
+    });
+
+    // Добавляем мёртвых хостов из alive=0
+    aliveResults.forEach(r => {
+      const host = r.metric.host || '?';
+      const ip   = r.metric.ip || '';
+      if (parseFloat(r.value[1]) === 0 && !hostMap[host]) {
+        hostMap[host] = { host, ip, latency_ms: 0, alive: 0 };
+      }
+    });
+
+    const hosts = Object.values(hostMap);
+    if (!hosts.length) throw new Error('empty');
+    return { hosts, fromMock: false };
+  } catch (e) {
+    console.warn('[topology] Prometheus unavailable, using mock:', e.message);
+    return { hosts: mock(), fromMock: true };
+  }
+}
+
+// ─── Canvas ───────────────────────────────────────────────────
+const canvas = document.getElementById('topology-canvas');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0;
+let nodes = [], arcs = [], particles = [];
+let hoveredArc = null, lastHosts = null, rafId = null;
+
+const NODE_CFG = [
+  { label: 'localhost',  sub: 'MacBook / PC',    icon: '💻', color: '#3b82f6' },
+  { label: 'Rus_proxy',  sub: 'VLESS балансер',   icon: '⚡', color: '#6366f1' },
+  { label: 'Out_proxy',  sub: 'VLESS outbound',   icon: '⚡', color: '#6366f1' },
+  { label: 'Telegram',  sub: 'DC сервер',         icon: '✈️', color: '#22c55e' },
+];
+
+// Смещения дуг для топ-3: 0 = центр (топ-1 активный), ±1 = топ-2/3
+// Распределяем: топ-1 по центру, топ-2 выше, топ-3 ниже
+
+function resize() {
+  const wrap = document.getElementById('canvas-wrap');
+  W = wrap.clientWidth;
+  H = wrap.clientHeight;
+  canvas.width  = W * devicePixelRatio;
+  canvas.height = H * devicePixelRatio;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  buildNodes();
+  if (lastHosts) buildArcs(lastHosts);
+}
+
+function buildNodes() {
+  const pad = W * 0.1;
+  const step = (W - pad * 2) / 3;
+  const cy = H * 0.5;
+  nodes = NODE_CFG.map((c, i) => ({ ...c, x: pad + step * i, y: cy }));
+}
+
+function latColor(ms, a = 1) {
+  if (ms < 50)  return `rgba(34,197,94,${a})`;
+  if (ms < 100) return `rgba(163,230,53,${a})`;
+  if (ms < 150) return `rgba(234,179,8,${a})`;
+  if (ms < 200) return `rgba(249,115,22,${a})`;
+  return `rgba(239,68,68,${a})`;
+}
+
+function buildArcs(hosts) {
+  arcs = [];
+  const alive = hosts.filter(h => h.alive).sort((a, b) => a.latency_ms - b.latency_ms);
+  if (!alive.length) return;
+
+  const topHosts = alive.slice(0, TOP_N);
+  const topRankMap = new Map(topHosts.map((h, i) => [h.host, i]));
+  const bgHosts = alive.filter(h => !topRankMap.has(h.host));
+
+  // ── Топ-3: фиксированные позиции ──
+  // rank-0 (активный) → центр (oy=0)
+  // rank-1 → выше центра
+  // rank-2 → ниже центра
+  const topSpread = Math.min(H * 0.30, 140);
+  const TOP_OY = [0, -topSpread, topSpread];
+
+  // ── Фоновые хосты: равномерно по всей высоте, но НЕ в зоне ±topSpread*0.6 от центра
+  // Делим на верхнюю и нижнюю полосы, чтобы не перекрывать топ-3
+  const bgSpread = H * 0.46;
+  const bgGap    = topSpread * 0.55; // мёртвая зона вокруг центра
+  const nBg = bgHosts.length;
+
+  for (let seg = 0; seg < 3; seg++) {
+    const n1 = nodes[seg], n2 = nodes[seg + 1];
+    const dx = n2.x - n1.x;
+
+    // Топ-3 дуги
+    topHosts.forEach((host, rank) => {
+      const oy = TOP_OY[rank];
+      arcs.push({
+        x1: n1.x, y1: n1.y, x2: n2.x, y2: n2.y,
+        cpx1: n1.x + dx * 0.33, cpy1: n1.y + oy * 0.88,
+        cpx2: n1.x + dx * 0.67, cpy2: n2.y + oy * 0.88,
+        oy, latency: host.latency_ms, host: host.host, ip: host.ip || '',
+        rank, isTop: true, isActive: rank === 0, seg,
+      });
+    });
+
+    // Фоновые дуги — верхняя и нижняя полосы
+    bgHosts.forEach((host, idx) => {
+      // Чередуем: чётные → верхняя полоса, нечётные → нижняя
+      const half = Math.ceil(nBg / 2);
+      let oy;
+      if (idx % 2 === 0) {
+        // Верхняя полоса: от -bgGap до -bgSpread
+        const ti = Math.floor(idx / 2);
+        const frac = half <= 1 ? 0 : ti / (half - 1);
+        oy = -(bgGap + frac * (bgSpread - bgGap));
+      } else {
+        // Нижняя полоса: от +bgGap до +bgSpread
+        const ti = Math.floor(idx / 2);
+        const frac = half <= 1 ? 0 : ti / (half - 1);
+        oy = bgGap + frac * (bgSpread - bgGap);
+      }
+
+      arcs.push({
+        x1: n1.x, y1: n1.y, x2: n2.x, y2: n2.y,
+        cpx1: n1.x + dx * 0.33, cpy1: n1.y + oy * 0.88,
+        cpx2: n1.x + dx * 0.67, cpy2: n2.y + oy * 0.88,
+        oy, latency: host.latency_ms, host: host.host, ip: host.ip || '',
+        rank: -1, isTop: false, isActive: false, seg,
+      });
+    });
+  }
+}
+
+function spawnParticles() {
+  particles = [];
+  // Частицы только по топ-3 линиям
+  arcs.forEach(arc => {
+    if (!arc.isTop) return;
+    const count = arc.rank === 0 ? 6 : arc.rank === 1 ? 3 : 2;
+    const baseSpeed = arc.rank === 0 ? 0.0016 : arc.rank === 1 ? 0.0011 : 0.0007;
+    for (let i = 0; i < count; i++) {
+      particles.push({ arc, t: i / count, speed: baseSpeed + Math.random() * 0.0005 });
+    }
+  });
+}
+
+function bez(a, t) {
+  const m = 1 - t;
+  return {
+    x: m*m*m*a.x1 + 3*m*m*t*a.cpx1 + 3*m*t*t*a.cpx2 + t*t*t*a.x2,
+    y: m*m*m*a.y1 + 3*m*m*t*a.cpy1 + 3*m*t*t*a.cpy2 + t*t*t*a.y2,
+  };
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Subtle grid
+  ctx.strokeStyle = 'rgba(30,34,48,0.35)';
+  ctx.lineWidth = 0.5;
+  for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+  // ── Дуги: сначала фоновые, потом топ-3 поверх ──
+  const drawOrder = [...arcs].sort((a, b) => {
+    const ra = a.isTop ? a.rank : 99;
+    const rb = b.isTop ? b.rank : 99;
+    return rb - ra; // обычные первыми, топ-1 последним
+  });
+
+  drawOrder.forEach(arc => {
+    const hov = hoveredArc === arc;
+    let alpha, lineW;
+
+    if (!arc.isTop) {
+      alpha = hov ? 0.60 : 0.32;
+      lineW = hov ? 1.2 : 0.8;
+    } else if (arc.rank === 0) {
+      alpha = hov ? 1.0 : 0.95;
+      lineW = 3.0;
+    } else if (arc.rank === 1) {
+      alpha = hov ? 0.90 : 0.70;
+      lineW = 2.0;
+    } else {
+      alpha = hov ? 0.75 : 0.52;
+      lineW = 1.5;
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(arc.x1, arc.y1);
+    ctx.bezierCurveTo(arc.cpx1, arc.cpy1, arc.cpx2, arc.cpy2, arc.x2, arc.y2);
+    ctx.strokeStyle = latColor(arc.latency, alpha);
+    ctx.lineWidth = lineW;
+    ctx.setLineDash([]);
+    ctx.stroke();
+
+    // Glow под топ-3
+    if (arc.rank === 0) {
+      ctx.beginPath();
+      ctx.moveTo(arc.x1, arc.y1);
+      ctx.bezierCurveTo(arc.cpx1, arc.cpy1, arc.cpx2, arc.cpy2, arc.x2, arc.y2);
+      ctx.strokeStyle = latColor(arc.latency, 0.22);
+      ctx.lineWidth = 18;
+      ctx.stroke();
+    } else if (arc.rank === 1 || arc.rank === 2) {
+      ctx.beginPath();
+      ctx.moveTo(arc.x1, arc.y1);
+      ctx.bezierCurveTo(arc.cpx1, arc.cpy1, arc.cpx2, arc.cpy2, arc.x2, arc.y2);
+      ctx.strokeStyle = latColor(arc.latency, 0.12);
+      ctx.lineWidth = 10;
+      ctx.stroke();
+    }
+
+    // Метки пинга для топ-3 (только центральный сегмент)
+    if (arc.isTop && arc.seg === 1) {
+      const mid = bez(arc, 0.5);
+      const txt = `${Math.round(arc.latency)}ms`;
+      ctx.font = `600 10px 'JetBrains Mono', monospace`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(10,12,16,0.88)';
+      ctx.fillRect(mid.x - 20, mid.y - 8, 40, 16);
+      ctx.fillStyle = latColor(arc.latency, arc.rank === 0 ? 1 : 0.7);
+      ctx.fillText(txt, mid.x, mid.y);
+
+      // Имя хоста рядом с меткой
+      ctx.font = `400 9px 'JetBrains Mono', monospace`;
+      const nameAbove = arc.oy <= 0;
+      ctx.textBaseline = nameAbove ? 'bottom' : 'top';
+      ctx.fillStyle = arc.rank === 0 ? 'rgba(59,130,246,0.85)' : 'rgba(100,120,160,0.6)';
+      ctx.fillText(arc.host, mid.x, mid.y + (nameAbove ? -12 : 12));
+    }
+
+    // "● ACTIVE" над топ-1
+    if (arc.rank === 0 && arc.seg === 1) {
+      const mid = bez(arc, 0.5);
+      ctx.font = `600 9px 'JetBrains Mono', monospace`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillStyle = 'rgba(59,130,246,0.8)';
+      ctx.fillText('● ACTIVE', mid.x, mid.y - 24);
+    }
+  });
+
+  // ── Частицы ──
+  particles.forEach(p => {
+    p.t = (p.t + p.speed) % 1;
+    const pos = bez(p.arc, p.t);
+    const r = p.arc.rank === 0 ? 3.5 : p.arc.rank === 1 ? 2.8 : 2.2;
+    const a = p.arc.rank === 0 ? 0.95 : p.arc.rank === 1 ? 0.80 : 0.60;
+
+    const g = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, r * 3.5);
+    g.addColorStop(0, latColor(p.arc.latency, a));
+    g.addColorStop(1, latColor(p.arc.latency, 0));
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, r * 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = latColor(p.arc.latency, a); ctx.fill();
+  });
+
+  // ── Узлы ──
+  nodes.forEach((n, i) => {
+    const r = Math.min(W * 0.032, 32);
+    // Glow
+    const grd = ctx.createRadialGradient(n.x, n.y, r * 0.3, n.x, n.y, r * 2.5);
+    grd.addColorStop(0, n.color + '30');
+    grd.addColorStop(1, n.color + '00');
+    ctx.beginPath(); ctx.arc(n.x, n.y, r * 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = grd; ctx.fill();
+    // Circle
+    ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = '#111318'; ctx.fill();
+    ctx.strokeStyle = n.color; ctx.lineWidth = 2; ctx.stroke();
+    // Icon
+    ctx.font = `${r * 0.72}px serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(n.icon, n.x, n.y - 1);
+    // Label
+    ctx.font = `600 ${Math.max(10, r * 0.44)}px 'Space Grotesk', sans-serif`;
+    ctx.fillStyle = '#c8d0e0'; ctx.textBaseline = 'top';
+    ctx.fillText(n.label, n.x, n.y + r + 8);
+    ctx.font = `300 ${Math.max(9, r * 0.36)}px 'Space Grotesk', sans-serif`;
+    ctx.fillStyle = '#4a5268';
+    ctx.fillText(n.sub, n.x, n.y + r + 23);
+  });
+
+  // ── Легенда дуг (слева) ──
+  drawLegend();
+
+  rafId = requestAnimationFrame(draw);
+}
+
+function drawLegend() {
+  const x0 = 14;
+  const y0 = H * 0.5 - 48;
+  const items = [
+    { label: '#1 активный',  alpha: 0.92, width: 2.8, rank: 0 },
+    { label: '#2 резерв',    alpha: 0.55, width: 1.8, rank: 1 },
+    { label: '#3 резерв',    alpha: 0.38, width: 1.2, rank: 2 },
+    { label: 'остальные',    alpha: 0.13, width: 0.6, rank: -1 },
+  ];
+
+  ctx.font = `500 9px 'JetBrains Mono', monospace`;
+  ctx.textBaseline = 'middle';
+
+  items.forEach((item, i) => {
+    const y = y0 + i * 24;
+    const sample = arcs.find(a => a.rank === item.rank);
+    const col = sample
+      ? latColor(sample.latency, item.alpha)
+      : `rgba(100,100,100,${item.alpha})`;
+    ctx.beginPath();
+    ctx.moveTo(x0, y);
+    ctx.lineTo(x0 + 22, y);
+    ctx.strokeStyle = col;
+    ctx.lineWidth = item.width;
+    ctx.setLineDash([]);
+    ctx.stroke();
+    ctx.fillStyle = item.rank === 0 ? '#c8d0e0' : '#4a5268';
+    ctx.textAlign = 'left';
+    ctx.fillText(item.label, x0 + 28, y);
+  });
+}
+
+// ─── Hit test ─────────────────────────────────────────────────
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  let best = null, bd = 14;
+  arcs.forEach(arc => {
+    for (let t = 0; t <= 1; t += 0.05) {
+      const p = bez(arc, t);
+      const d = Math.hypot(p.x - mx, p.y - my);
+      if (d < bd) { bd = d; best = arc; }
+    }
+  });
+  hoveredArc = best;
+  const tip = document.getElementById('tooltip');
+  if (best) {
+    const rankLabel = best.rank === 0
+      ? '🟢 Активный (топ-1)'
+      : best.rank > 0
+        ? `⚪ Резерв (топ-${best.rank + 1})`
+        : '· маршрут';
+    const ipLine = best.ip ? `<br><span style="color:var(--muted);font-size:10px">${best.ip}</span>` : '';
+    tip.innerHTML = `<strong>${best.host}</strong>${Math.round(best.latency)} ms ${rankLabel}${ipLine}`;
+    tip.classList.add('visible');
+    tip.style.left = (e.clientX + 12) + 'px';
+    tip.style.top  = (e.clientY - 8) + 'px';
+  } else {
+    tip.classList.remove('visible');
+  }
+});
+canvas.addEventListener('mouseleave', () => {
+  hoveredArc = null;
+  document.getElementById('tooltip').classList.remove('visible');
+});
+
+// ─── UI ───────────────────────────────────────────────────────
+let lastUpdateTs = null;
+
+function updateUI(hosts, fromMock) {
+  const alive = hosts.filter(h => h.alive).sort((a, b) => a.latency_ms - b.latency_ms);
+  const best = alive[0]?.latency_ms;
+  const avg  = alive.length ? alive.reduce((s, h) => s + h.latency_ms, 0) / alive.length : null;
+
+  document.getElementById('t-alive').textContent = alive.length;
+  document.getElementById('t-total').textContent = hosts.length;
+  document.getElementById('t-best').textContent  = best ? Math.round(best) : '—';
+  document.getElementById('t-avg').textContent   = avg  ? Math.round(avg)  : '—';
+  document.getElementById('src-label').textContent = fromMock ? 'MOCK' : 'LIVE';
+  document.getElementById('dot').style.background = fromMock ? '#f97316' : '#22c55e';
+
+  if (!fromMock) {
+    lastUpdateTs = Date.now();
+    document.getElementById('data-age').textContent = '';
+  }
+
+  // Top-3 chips в тулбаре
+  const chipsEl = document.getElementById('top3-chips');
+  chipsEl.innerHTML = '';
+  chipsEl.style.display = 'flex';
+  chipsEl.style.alignItems = 'center';
+  chipsEl.style.gap = '4px';
+
+  alive.slice(0, TOP_N).forEach((h, i) => {
+    if (i > 0) {
+      const arr = document.createElement('span');
+      arr.className = 'chip-arrow';
+      arr.textContent = '›';
+      chipsEl.appendChild(arr);
+    }
+    const chip = document.createElement('div');
+    chip.className = `top-chip r${i+1}${i === 0 ? ' active' : ''}`;
+    // Показываем IP если есть, иначе имя хоста
+    const displayName = h.host;
+    const displaySub  = h.ip ? h.ip : '';
+    chip.title = displaySub ? `${displayName}\n${displaySub}` : displayName;
+    chip.innerHTML = `
+      <div class="chip-rank">${i+1}</div>
+      <span class="chip-name">${displayName}</span>
+      ${displaySub ? `<span style="font-size:9px;color:var(--muted);margin-left:2px">${displaySub}</span>` : ''}
+      <span class="chip-lat" style="color:${latColor(h.latency_ms)}">${Math.round(h.latency_ms)}ms</span>
+    `;
+    chipsEl.appendChild(chip);
+  });
+}
+
+// Обновляем индикатор "данные N секунд назад"
+setInterval(() => {
+  if (!lastUpdateTs) return;
+  const age = Math.round((Date.now() - lastUpdateTs) / 1000);
+  const el = document.getElementById('data-age');
+  if (el) el.textContent = age > 10 ? `(${age}с назад)` : '';
+}, 5000);
+
+let cd = REFRESH_MS / 1000;
+let cdTimer = null;
+function startCd() {
+  cd = REFRESH_MS / 1000;
+  clearInterval(cdTimer);
+  cdTimer = setInterval(() => {
+    cd--;
+    document.getElementById('countdown').textContent = cd + 'с';
+    if (cd <= 0) clearInterval(cdTimer);
+  }, 1000);
+}
+
+async function refresh() {
+  document.getElementById('dot').style.background = '#eab308';
+  const { hosts, fromMock } = await fetchData();
+  lastHosts = hosts;
+  buildArcs(hosts);
+  spawnParticles();
+  updateUI(hosts, fromMock);
+  startCd();
+}
+
+// ─── Init ─────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  cancelAnimationFrame(rafId);
+  resize();
+  if (lastHosts) { buildArcs(lastHosts); spawnParticles(); }
+  requestAnimationFrame(draw);
+});
+
+resize();
+requestAnimationFrame(draw);
+refresh();
+setInterval(refresh, REFRESH_MS);
+</script>
+</body>
+</html>
