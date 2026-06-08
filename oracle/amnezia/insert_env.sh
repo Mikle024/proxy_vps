@@ -1,3 +1,5 @@
+#!/bin/bash
+
 tr -d '\r' < awg0.conf.tmp > awg0.conf.clean
 sed -i 's/\r//' .env
 
