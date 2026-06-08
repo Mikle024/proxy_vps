@@ -1,3 +1,5 @@
+#!/bin/bash
+
 tr -d '\r' < config.toml.tmp > config.toml.clean
 sed -i 's/\r//' .env
 
