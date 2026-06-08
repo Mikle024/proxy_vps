@@ -3,11 +3,21 @@
 *.iml  
 *.iws  
 
-#doc
+# doc
 doc/
 
-#environment
+# environment
 .env
+
+# eoip
+*.mmdb
+
+# .env configs
+src/oracle/telemt/config/config.toml
+src/oracle/telemt/telemt-panel/panel.toml
+src/oracle/amnezia/awg0.conf
+src/cloud/amnezia/awg0.conf
+src/cloud/xray/config.json
 
 # CMake build directory  
 CMakeLists.txt.user  

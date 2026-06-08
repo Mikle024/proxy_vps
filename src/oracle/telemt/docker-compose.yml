@@ -39,3 +39,18 @@ services:
       options:
         max-size: "50m"
         max-file: "5"
+
+  telemt-panel:
+    image: telemt_panel:local
+    container_name: telemt_panel
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./telemt-panel/panel.toml:/etc/telemt-panel/config.toml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./geoip:/var/lib/geoip:ro
+    entrypoint: []
+    command: telemt-panel --config /etc/telemt-panel/config.toml
+    depends_on:
+      - telemt
