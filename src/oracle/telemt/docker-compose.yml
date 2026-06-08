@@ -49,6 +49,7 @@ services:
     volumes:
       - ./telemt-panel/panel.toml:/etc/telemt-panel/config.toml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./geoip:/var/lib/geoip:ro
     entrypoint: []
     command: telemt-panel --config /etc/telemt-panel/config.toml
     depends_on:

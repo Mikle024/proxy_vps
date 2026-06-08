@@ -1,0 +1,25 @@
+global
+log stdout format raw local0
+maxconn 10000
+
+defaults
+log     global
+mode    tcp
+option  tcplog
+option  clitcpka
+option  srvtcpka
+timeout connect 5s
+timeout client  2h
+timeout server  2h
+timeout check   5s
+
+frontend tcp_in_443
+# Добавляем mss 256 для принудительной фрагментации пакетов клиента
+bind *:443 mss 92
+maxconn 8000
+no option tcp-smart-accept
+default_backend telemt_nodes
+
+backend telemt_nodes
+no option tcp-smart-connect
+server server_a 10.10.10.1:443 check inter 5s rise 2 fall 3 send-proxy-v2

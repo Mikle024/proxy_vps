@@ -8,6 +8,10 @@ container_name = "telemt"
 [panel]
 auto_update.enabled = false
 
+[geoip]
+db_path = "/var/lib/geoip/GeoLite2-City.mmdb"
+asn_db_path = "/var/lib/geoip/GeoLite2-ASN.mmdb"
+
 [auth]
 username = "$ADMIN_USERNAME"
 password_hash = "$ADMIN_PASSWORD_HASH"

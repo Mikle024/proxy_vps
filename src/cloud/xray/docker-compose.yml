@@ -1,0 +1,15 @@
+services:
+  xray:
+    image: ghcr.io/xtls/xray-core:latest
+    container_name: xray-proxy
+    environment:
+      - TZ=Europe/Moscow
+    cap_add:
+      - NET_BIND_SERVICE
+    ports:
+      - "443:443"
+    restart: always
+    volumes:
+      - ./config.json:/etc/xray/config.json:ro
+
+    command: ["run", "-c", "/etc/xray/config.json"]
