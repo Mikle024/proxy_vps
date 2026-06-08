@@ -1,0 +1,15 @@
+listen = "0.0.0.0:8080"
+
+[telemt]
+url = "http://telemt:9091"
+auth_header = ""
+container_name = "telemt"
+
+[panel]
+auto_update.enabled = false
+
+[auth]
+username = "$ADMIN_USERNAME"
+password_hash = "$ADMIN_PASSWORD_HASH"
+jwt_secret = "$ADMIN_JWT_SECRET"
+session_ttl = "24h"
